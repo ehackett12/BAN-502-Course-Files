@@ -1,0 +1,48 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+## Module 1 Assignment 2 - R Refresher
+
+```{r}
+#install.packages("tidyverse")
+library(tidyverse) #Loads Tidyverse Package
+```
+
+```{r}
+diamonddata = diamonds
+nrow(diamonddata)
+ncol(diamonddata)
+
+ggplot(diamonddata, aes(x = carat, y = price)) + geom_point() + theme_bw()
+```
+
+In looking at the scatterplot created comparing the cara and price variables within the diamonddata dataset, it appears that tehre is a non-linear relationship between the number of carats and price. As the carat size increases so does the price at an increasing rate. 
+
+```{r}
+ggplot(diamonddata, aes(x = carat, y = price, color = as.factor(cut))) + geom_point() + theme_bw()
+```
+
+When running the same line of code, but adding in the cut variable, we are able to gain a clearer picture into the the factors that influence the price of a diamond. The better the cut the more quickly the price of the diamon increases. For example, the most right point is a fair cut diamond that is above 5 carats, but a very good cut 2 carat diamond is the same price. 
+
+```{r}
+library(readr)
+Inventory <- read_csv("C:/Users/Evan/Desktop/BAN 502/Module 1/Assignment 2/InventoryData.csv")
+View(Inventory)
+```
+
+The invenory data set includes 6 variables: Item SKU, Store, Supplies, Cost Per Unit, On Hand and Annual Demand. Along with the 6 variables there are 13,561 observations.
+```{r}
+InventoryA = Inventory %>% filter(Supplier == 'A')
+InventoryA = mutate(InventoryA, OnHandRatio = `On Hand` / `Annual Demand`)
+```
+The new InventoryA data frame has 3,695 rows of observations.  
+The line of code shown in Task 8 creates a new variable that is a ratio by dividing two current variables against one another and adds it to the InventoryA dataframe. 
+
+```{r}
+avg_cost = InventoryA %>% group_by(`Item SKU`) %>% summarize (SKUAvgCost = mean(`Cost per Unit ($)`))
+avg_cost
+```
+
+The only previous R experience I have is from completing MIS503, during the course I did not run into much difficulty. My biggest concern was that I would be rusty coming into this class, or any other class / job that requires R experience as I do not find mysel in R while working on school work. But this was a good refresher and I did not find myself getting lost. It did help to look back through my old course notes. I am looking forward to getting stronger in R through further applications. 

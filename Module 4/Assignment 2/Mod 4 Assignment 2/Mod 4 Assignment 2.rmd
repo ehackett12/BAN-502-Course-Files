@@ -1,0 +1,79 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+##Module 4 Assignment 2 
+### Hackett, Evan
+
+```{r}
+library(tidyverse)
+library(caret)
+library(ranger)
+```
+
+
+```{r}
+Blood <- read_csv("Blood.csv")
+View(Blood)
+
+Blood = Blood %>% mutate(DonatedMarch = as_factor(as.character(DonatedMarch))) %>%
+mutate(DonatedMarch = fct_recode(DonatedMarch,
+"yes" = "1",
+"no" = "0"))
+```
+
+splitting Blood dataset into training/testing
+```{r}
+set.seed(1234)
+train.rows = createDataPartition(y = Blood$DonatedMarch, p=0.7, list = FALSE) #70% in training
+train = Blood[train.rows,] 
+test = Blood[-train.rows,]
+```
+
+Random forest
+```{r}
+fit_control = trainControl(method = "cv",  
+                           number = 10) #set up 10 fold cross-validation
+
+set.seed(123)  
+rf_fit = train(DonatedMarch ~.,    
+                 data = train,   
+                 method = "ranger",  
+                 importance = "permutation", 
+                 num.trees = 100,
+                 trControl = fit_control)
+```
+
+Check out random forest details  
+```{r}
+varImp(rf_fit)
+rf_fit
+```
+
+The most important variable is the Total_Donated variable. The Least important variables it the Mnths_Since_Last variable. 
+
+Predictions  
+```{r}
+predRF = predict(rf_fit, train)
+head(predRF)
+```
+
+Confusion matrix
+```{r}
+confusionMatrix(predRF, train$DonatedMarch, positive = "yes")
+```
+
+The accuracy of this model is significantly higher than that of the naive model. The accuracy rate of this model is 90.65% which is greater than that of the naive model which has an accuracy rate of 76.15%, this difference is statistically different and we know this as the p value is less than .05. 
+
+Predictions on testing set 
+```{r}
+predRFTest = predict(rf_fit, test)
+head(predRFTest)
+```
+
+Confusion matrix
+```{r}
+confusionMatrix(predRFTest, test$DonatedMarch, positive = "yes")
+```
+The model does not perform as well on the test data set. The accuracy rate has decreaed to 77.68% which is just marginally better than the naive model of 76.34% and the variance is not statistically significant as the p value is greater than .05. 

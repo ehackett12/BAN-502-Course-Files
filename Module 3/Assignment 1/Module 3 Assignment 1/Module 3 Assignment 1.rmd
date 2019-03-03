@@ -1,0 +1,89 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+```{r}
+library(tidyverse)
+library(caret)
+```
+
+
+
+```{r}
+hour <- read_csv("C:/Users/Evan/Desktop/BAN 502/Module 2/Assignment 2/hour.csv")
+View(hour)
+bike = hour
+
+bike = bike %>% mutate(season = as_factor(as.character(season))) %>%
+mutate(season = fct_recode(season,
+"Spring" = "1",
+"Summer" = "2",
+"Fall" = "3",
+"Winter" = "4"))
+
+bike = bike %>% mutate(yr = as_factor(as.character(yr))) 
+bike = bike %>% mutate(mnth = as_factor(as.character(mnth))) 
+bike = bike %>% mutate(hr = as_factor(as.character(hr))) 
+
+bike = bike %>% mutate(holiday = as_factor(as.character(holiday))) %>%
+mutate(holiday = fct_recode(holiday,
+"NotHoliday" = "0",
+"Holiday" = "1"))
+
+bike = bike %>% mutate(workingday = as_factor(as.character(workingday))) %>%
+mutate(workingday = fct_recode(workingday,
+"NotWorkingDay" = "0",
+"WorkingDay" = "1"))
+
+bike = bike %>% mutate(weathersit = as_factor(as.character(weathersit))) %>%
+mutate(weathersit = fct_recode(weathersit,
+"NoPrecip" = "1",
+"Misty" = "2",
+"LightPrecip" = "3",
+"HeavyPrecip" = "4"))
+
+bike = bike %>% mutate(weekday = as_factor(as.character(weekday))) %>%
+mutate(weekday = fct_recode(weekday,
+"Sunday" = "0",
+"Monday" = "1",
+"Tuesday" = "2",
+"Wednesday" = "3",
+"Thursday" ="4",
+"Friday" = "5",
+"Saturday" = "6"))
+```
+Split the data (training and testing)
+```{r}
+set.seed(1234)
+train.rows = createDataPartition(y = bike$count, p=0.7, list = FALSE) #70% in training
+train = bike[train.rows,] 
+test = bike[-train.rows,]
+```
+There are 12,167 rows of data in the training dataset and 5,212 rows of data in the testing dataset.  
+
+```{r}
+Mod1 = lm(count ~ season + mnth + hr + holiday + weekday + temp + weathersit, train)
+summary(Mod1)
+```
+This is a fairly good model to test the count variable. The adjusted R-squared value is .6214.
+
+```{r}
+predict_train = predict(Mod1, newdata = train)
+head(predict_train,6)
+```
+Of the 6 predictions that are being shown only the sixth predition makes sense, as we are not able to have negative bike rides. R however, is not aware of this and continues to spit them out. In a real life situation I would count those as "zero" ride days. 
+```{r}
+predict_test = predict(Mod1, newdata = test)
+head(predict_test,6)
+```
+The predictions from the test data set make more logical sense, as the majority of them are positive numbers.
+
+```{r}
+SSE = sum((test$count - predict_test)^2) #sum of squared residuals from model
+SST = sum((test$count - mean(test$count))^2) #sum of squared residuals from a "naive" model
+1 - SSE/SST #definition of R squared
+```
+This r-squared value is slightly greater than r squared value we received on the training data. This means that our first model did not overfit the data.   
+
+K-fold validation works differently than training/testing splits by "splitting" the data into an equal number of rows across partitions. Partitions are just rows of data. The most common number of partitions is 3, 5 or 10. Each time you evaluate a model using k-fold you run k number of analyses, holding out on partition at a time, you would then use the aggregate of the multiple models.

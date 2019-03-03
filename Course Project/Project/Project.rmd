@@ -1,0 +1,126 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+## Course Project
+### Hackett, Evan
+
+```{r}
+library(tidyverse)
+library(VIM)
+library(mice)
+library(GGally)
+library(ggplot2)
+```
+
+```{r}
+rain <- read_csv("rain.csv")
+View(rain)
+
+rain = rain %>% mutate(RainToday = as_factor(as.character(RainToday))) %>%
+mutate(RainToday = fct_recode(RainToday,
+"0" = "No",
+"1" = "Yes"))
+
+```
+
+```{r}
+str(rain)
+summary(rain)
+```
+
+```{r}
+ggplot(rain,aes(x=RainTomorrow,y=MinTemp)) + geom_boxplot()
+```
+
+```{r}
+ggplot(rain,aes(x=RainTomorrow, y= MaxTemp)) + geom_boxplot()
+```
+
+```{r}
+ggplot(rain,aes(x=RainTomorrow, y= Rainfall)) + geom_boxplot()
+```
+
+```{r}
+ggplot(rain,aes(x=RainTomorrow, y= WindGustSpeed)) + geom_boxplot()
+```
+
+```{r}
+ggplot(rain,aes(x=RainTomorrow, y= WindSpeed9am)) + geom_boxplot()
+```
+
+```{r}
+ggplot(rain,aes(x=RainTomorrow, y= WindSpeed3pm)) + geom_boxplot()
+```
+
+```{r}
+ggplot(rain,aes(x=RainTomorrow, y= Humidity9am)) + geom_boxplot()
+```
+
+```{r}
+ggplot(rain,aes(x=RainTomorrow, y= Humidity3pm)) + geom_boxplot()
+```
+
+```{r}
+ggplot(rain,aes(x=RainTomorrow, y= Pressure9am)) + geom_boxplot()
+```
+
+```{r}
+ggplot(rain,aes(x=RainTomorrow, y= Pressure3pm)) + geom_boxplot()
+```
+
+```{r}
+ggplot(rain,aes(x=RainTomorrow, y= Cloud9am)) + geom_boxplot()
+```
+
+```{r}
+ggplot(rain,aes(x=RainTomorrow, y= Cloud3pm)) + geom_boxplot()
+```
+
+```{r}
+ggplot(rain,aes(x=RainTomorrow, y= Temp9am)) + geom_boxplot()
+```
+
+```{r}
+ggplot(rain,aes(x=RainTomorrow, y= Temp3pm)) + geom_boxplot()
+```
+
+
+```{r}
+ggcorr(rain, label = TRUE)
+```
+
+View Missingness
+```{r}
+vim_plot = aggr(rain, numbers = TRUE, prop = c(TRUE, FALSE),cex.axis=.7)
+#the cex.axis reduces size of text on x-axis so labels fit better
+```
+
+Deleting out Cloud Coverage variables, deleting due to large number of missing observations. 
+
+```{r}
+rain = rain %>% select(-Cloud9am, -Cloud3pm) 
+vim_plot = aggr(rain, numbers = TRUE, prop = c(TRUE, FALSE),cex.axis=.7)
+```
+ 
+```{r}
+#select only variables relevant to our analysis
+rain = rain %>% select(c("RainTomorrow","MinTemp","MaxTemp","Humidity9am","Humidity3pm","WindGustSpeed","Temp3pm"))
+
+vim_plot = aggr(rain, numbers = TRUE, prop = c(TRUE, FALSE),cex.axis=.7)
+
+imp_WindGustSpeed = mice(rain, m=1, method='pmm', printFlag=FALSE)
+summary(imp_WindGustSpeed)
+```
+
+
+```{r}
+densityplot(imp_WindGustSpeed, ~WindGustSpeed)
+```
+
+Merge the imputed values into our titanic data frame  
+```{r}
+rain_complete = complete(imp_WindGustSpeed) 
+summary(rain_complete)
+```

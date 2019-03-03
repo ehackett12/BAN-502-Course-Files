@@ -1,0 +1,172 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+##Module 4 Assignment 1 
+### Hackett, Evan
+
+```{r} 
+library(e1071)
+library(tidyverse)
+library(caret)
+library(rpart)
+library(rattle)
+library(RColorBrewer)
+```
+
+```{r}
+parole <- read_csv("C:/Users/Evan/Desktop/BAN 502/Module 3/Assignment 2/parole.csv") #ReadingInParoleDataset
+View(parole)
+
+parole = parole %>% mutate(male = as_factor(as.character(male))) %>%
+mutate(male = fct_recode(male,
+"male" = "1",
+"female" = "0"))
+
+parole = parole %>% mutate(race = as_factor(as.character(race))) %>%
+mutate(race = fct_recode(race,
+"white" = "1",
+"otherwise" = "2"))
+
+parole = parole %>% mutate(state = as_factor(as.character(state))) %>%
+mutate(state = fct_recode(state,
+"Other" = "1",
+"Kentucky" = "2",
+"Louisana" = "3",
+"Virginia" = "4"))
+
+parole = parole %>% mutate(crime = as_factor(as.character(crime))) %>%
+mutate(crime = fct_recode(crime,
+"Other" = "1",
+"larceny" = "2",
+"drug-related" = "3",
+"driving-related" = "4"))
+
+parole = parole %>% mutate(multiple.offenses = as_factor(as.character(multiple.offenses))) %>%
+mutate(multiple.offenses = fct_recode(multiple.offenses,
+"multiple offenses" = "1",
+"otherwise" = "0"))
+
+parole = parole %>% mutate(violator = as_factor(as.character(violator))) %>%
+mutate(violator = fct_recode(violator,
+"violated parole" = "1",
+"completed parole" = "0"))
+```
+
+Splitting the dataset into Training / Testing 
+```{r}
+set.seed(12345)
+train.rows = createDataPartition(y = parole$violator, p=0.7, list = FALSE) #70% in training
+train = parole[train.rows,] 
+test = parole[-train.rows,]
+```
+
+Creating a classification tree to predict violator within the training dataset
+```{r}
+tree1 = rpart(violator ~., train, method="class")
+fancyRpartPlot(tree1)
+```
+In looking at the classification tree, I would classify a 40 year old parolle from lousiana who served a 5 year prison status as someone who completed their parole. At the very top, we are asked if the person lives in Kentucky, Virginia or Other, knowing that they are from lousiana we immediately know that the answer is no, as Lousiana was one of the states listed within the dataset. This takes us to right where we the next classification is based off of age, if the person is older than 43 they would be classified as somoene violated parole, however our subject is 40 so we move to the next branch where if the time served is longer than 2.6 years they completed their parole, and that matches the information we are given, as they served 5 years.  
+
+
+```{r}
+printcp(tree1)
+plotcp(tree1)
+```
+The complexity parameter that should be utilized is 0.054545.
+
+```{r}
+tree2 = rpart(violator ~., train, cp=0.054545, method="class")
+summary(train)
+```
+The majority class of the train dataset is completed parole. In a naive model we would assume the majority would complete parole. 
+
+
+Predictions on training set  
+```{r}
+treepred_train = predict(tree1, newdata=train, type = "class")
+head(treepred_train)
+```
+
+Caret confusion matrix and accuracy, etc. calcs on training 
+```{r}
+confusionMatrix(treepred_train,train$violator,positive="completed parole") #predictions first then actual
+```
+
+Predictions on testing set  
+```{r}
+treepred_test = predict(tree1, newdata=test, type = "class")
+head(treepred_test)
+```
+
+Caret confusion matrix and accuracy, etc. calcs on testing  
+```{r}
+confusionMatrix(treepred_test,test$violator,positive="completed parole") #predictions first then actual
+```
+
+The model is 86.14% accurate qhich is actually less accurate than what we would assume if we had no data and had a naive model. However, the diffeerence between the two is not statisically significant as the p-value is greater than .05.
+
+Reading in Blood dataset and converting dataset
+```{r}
+Blood <- read_csv("Blood.csv")
+View(Blood)
+
+Blood = Blood %>% mutate(DonatedMarch = as_factor(as.character(DonatedMarch))) %>%
+mutate(DonatedMarch = fct_recode(DonatedMarch,
+"yes" = "1",
+"no" = "0"))
+```
+
+splitting Blood dataset into training/testing
+```{r}
+set.seed(1234)
+train.rows = createDataPartition(y = Blood$DonatedMarch, p=0.7, list = FALSE) #70% in training
+train2 = Blood[train.rows,] 
+test2 = Blood[-train.rows,]
+```
+
+Creating a classification tree to predict March Donation within the training dataset
+```{r}
+Bloodtree1 = rpart(DonatedMarch ~., train2, method="class")
+fancyRpartPlot(Bloodtree1)
+```
+
+```{r}
+printcp(Bloodtree1)
+plotcp(Bloodtree1)
+```
+
+```{r}
+Bloodtree2 = rpart(DonatedMarch ~., train2, cp=0.016, method="class")
+fancyRpartPlot(Bloodtree2)
+```
+
+Predictions on training set for blood data 
+```{r}
+treepred_train2 = predict(Bloodtree2, newdata=train2, type = "class")
+head(treepred_train2)
+```
+
+
+Caret confusion matrix and accuracy, etc. calcs on training 
+```{r}
+confusionMatrix(treepred_train2,train2$DonatedMarch,positive="yes") #predictions first then actual
+```
+
+
+
+Predictions on training set for blood data 
+```{r}
+treepred_test2 = predict(Bloodtree2, newdata=test2, type = "class")
+head(treepred_test2)
+```
+
+
+Caret confusion matrix and accuracy, etc. calcs on training 
+```{r}
+confusionMatrix(treepred_test2,test2$DonatedMarch,positive="yes") #predictions first then actual
+```
+
+
+The accuracy is a bit higher on the training dataset at 81.3%, which is statistically significanly higer than if we had no information at all. We know this because the p-value is less than .05. The accuracy on the testing set did decrease slightly t0 75.45%, which is less than the accuracy if no information was being provided, however the variance between those two is not statistically significant as the p-value is greater than .05.

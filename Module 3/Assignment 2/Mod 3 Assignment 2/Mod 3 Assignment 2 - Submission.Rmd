@@ -1,0 +1,239 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+```{r}
+library(tidyverse)
+library(MASS)
+library(caret)
+library(ROCR)
+```
+
+```{r}
+parole <- read_csv("C:/Users/Evan/Desktop/BAN 502/Module 3/Assignment 2/parole.csv")
+View(parole)
+
+parole = parole %>% mutate(male = as_factor(as.character(male))) %>%
+mutate(male = fct_recode(male,
+"male" = "1",
+"female" = "0"))
+
+parole = parole %>% mutate(race = as_factor(as.character(race))) %>%
+mutate(race = fct_recode(race,
+"white" = "1",
+"otherwise" = "2"))
+
+parole = parole %>% mutate(state = as_factor(as.character(state))) %>%
+mutate(state = fct_recode(state,
+"Other" = "1",
+"Kentucky" = "2",
+"Louisana" = "3",
+"Virginia" = "4"))
+
+parole = parole %>% mutate(crime = as_factor(as.character(crime))) %>%
+mutate(crime = fct_recode(crime,
+"Other" = "1",
+"larceny" = "2",
+"drug-related" = "3",
+"driving-related" = "4"))
+
+parole = parole %>% mutate(multiple.offenses = as_factor(as.character(multiple.offenses))) %>%
+mutate(multiple.offenses = fct_recode(multiple.offenses,
+"multiple offenses" = "1",
+"otherwise" = "0"))
+
+parole = parole %>% mutate(violator = as_factor(as.character(violator))) %>%
+mutate(violator = fct_recode(violator,
+"violated parole" = "1",
+"completed parole" = "0"))
+```
+
+```{r}
+set.seed(12345)
+train.rows = createDataPartition(y = parole$violator, p=0.7, list = FALSE) #70% in training
+train = parole[train.rows,] 
+test = parole[-train.rows,]
+
+```
+
+Visuals
+Gender
+```{r}
+ggplot(parole, aes(x=male, fill = violator)) + geom_bar() + theme_bw()
+```
+It appears that overall more males than females have been arrested. But that their rate of violating parole is faily similar, males might violate their parole more often than females but not by a large amount. I would not think that this is the best predictor variable.  
+
+Race
+```{r}
+ggplot(parole, aes(x=race, fill = violator)) + geom_bar() + theme_bw()
+```
+It appears that non-whites violate their parole at a higher rate than whites. 
+
+Age
+```{r}
+ggplot(parole, aes(x= violator, y = age)) + geom_boxplot() + theme_bw()
+```
+Age does not appear to play a significant factor into whether or not someone completes or violates their parole. 
+
+State
+```{r}
+ggplot(parole, aes(x=state, fill = violator)) + geom_bar() + theme_bw()
+```
+People in  Louisana violate their parole at a significanty higher rate than those in Kentucky, Virginia or other states. This so far is the best predictor. 
+
+Time Served
+```{r}
+ggplot(parole, aes(x= violator, y = time.served)) + geom_boxplot() + theme_bw()
+
+```
+It appears that the longer time served the more likely someone will complete their parole. This makes sense, as it would make logical sense for someone who has spent more time in prison would be less willing to go back, under normal circumstances. 
+
+Max Sentence
+```{r}
+ggplot(parole, aes(x= violator, y = max.sentence)) + geom_boxplot() + theme_bw()
+```
+Another variable that appears to play a significant role. The longer their maximum sentence appears to correlate to a more succesful parole completion rate. 
+
+Mutliple Offenses
+```{r}
+ggplot(parole, aes(x=multiple.offenses, fill = violator)) + geom_bar() + theme_bw()
+```
+Those that have committed multiple offenses are more likely to violate their parole. 
+
+Crime
+```{r}
+ggplot(parole, aes(x=crime, fill = violator)) + geom_bar() + theme_bw()
+```
+
+```{r}
+mod1 = glm(violator ~ max.sentence , parole, family = "binomial")
+summary(mod1)
+```
+I chose to run my model using the maximum sentence variable. The variable is statsitically signifcant and the AIC is 469.68.
+
+```{r}
+allmod = glm(violator ~., train, family = "binomial")
+summary(allmod)
+
+emptymod = glm(violator ~1, train, family = "binomial")  
+summary(emptymod)
+```
+
+```{r}
+backmod = stepAIC(allmod, direction = "backward", trace = TRUE) 
+summary(backmod)
+```
+I used a backwards stepwise function to have R derive this model. The final model that it deemed best had an AIC of 252.28 which is an improvement from my initial model that only used the max sentence variable. This model finds that race, state and multiple offenses are statistically significant. The model allows us to see a few trends that were noted above in the visuals section. People in the start of louisana are more likely to violate parole while those in Kentucky and Virginia are not. Those with multiple offenses are also more likely to violate their parole as well as non-whites, which are all observations that were noted previously.  
+
+```{r}
+mod2 = glm(violator ~ state + multiple.offenses + race, train, family = "binomial" )
+summary(mod2)
+```
+
+This model has an AIC value of 252.42 which is very similar to our previous model. Race, and multiple offenses remains significant as well as the state of virginia. 
+
+Predictions
+```{r}
+newdata = data.frame(state = "Louisana", multiple.offenses = "multiple offenses", race = "white")
+predict(mod2, newdata, type="response")
+```
+Another Prediction
+```{r}
+newdata = data.frame(state = "Kentucky", multiple.offenses = "otherwise", race = "otherwise")
+predict(mod2, newdata, type="response")
+```
+```{r}
+predictions = predict(backmod, type="response") #develop predicted probabilities
+head(predictions)
+```
+```{r}
+#Change this next line to the names of your predictions and the response variable in the training data frame
+ROCRpred = prediction(predictions, train$violator) 
+
+###You shouldn't need to ever change the next two lines:
+ROCRperf = performance(ROCRpred, "tpr", "fpr")
+plot(ROCRperf, colorize=TRUE, print.cutoffs.at=seq(0,1,by=0.1), text.adj=c(-0.2,1.7))
+```
+```{r}
+#Determine threshold to balance sensitivity and specificity
+#DO NOT modify this code
+opt.cut = function(perf, pred){
+    cut.ind = mapply(FUN=function(x, y, p){
+        d = (x - 0)^2 + (y-1)^2
+        ind = which(d == min(d))
+        c(sensitivity = y[[ind]], specificity = 1-x[[ind]], 
+            cutoff = p[[ind]])
+    }, perf@x.values, perf@y.values, pred@cutoffs)
+}
+print(opt.cut(ROCRperf, ROCRpred))
+```
+The sensitivity and specificity of the curve are listed above. 
+
+```{r}
+#confusion matrix
+t1 = table(train$violator,predictions > 0.1455707)
+t1
+```
+
+```{r}
+(t1[1,1]+t1[2,2])/nrow(train)
+```
+The accuracy of this model given that we balance sensitivity and specificity is listed above. 
+The risk we run by mis-classifying in this instance is that we may keep people incarcerated that would successfully complete their parole, or may release some people on parole that should not be as they will violate the conditions of their parole. 
+
+Trial and error of new thresholds
+```{r}
+t1 = table(train$violator,predictions > 0.3)
+(t1[1,1]+t1[2,2])/nrow(train)
+```
+
+```{r}
+t1 = table(train$violator,predictions > 0.4)
+(t1[1,1]+t1[2,2])/nrow(train)
+```
+
+```{r}
+t1 = table(train$violator,predictions > 0.5)
+(t1[1,1]+t1[2,2])/nrow(train)
+```
+
+```{r}
+t1 = table(train$violator,predictions > 0.45)
+(t1[1,1]+t1[2,2])/nrow(train)
+```
+
+```{r}
+predict_test = predict(backmod, newdata = test, type = "response")
+head(predict_test)
+
+#Change this next line to the names of your predictions and the response variable in the training data frame
+ROCRpred = prediction(predict_test, test$violator) 
+
+###You shouldn't need to ever change the next two lines:
+ROCRperf = performance(ROCRpred, "tpr", "fpr")
+plot(ROCRperf, colorize=TRUE, print.cutoffs.at=seq(0,1,by=0.1), text.adj=c(-0.2,1.7))
+
+#Determine threshold to balance sensitivity and specificity
+#DO NOT modify this code
+opt.cut = function(perf, pred){
+    cut.ind = mapply(FUN=function(x, y, p){
+        d = (x - 0)^2 + (y-1)^2
+        ind = which(d == min(d))
+        c(sensitivity = y[[ind]], specificity = 1-x[[ind]], 
+            cutoff = p[[ind]])
+    }, perf@x.values, perf@y.values, pred@cutoffs)
+}
+print(opt.cut(ROCRperf, ROCRpred))
+```
+```{r}
+#confusion matrix
+t1 = table(test$violator,predict_test > 0.4)
+t1
+```
+
+```{r}
+(t1[1,1]+t1[2,2])/nrow(test)
+
+```
+The accuracy of the .4 probablity threshold on the test set is .8910891

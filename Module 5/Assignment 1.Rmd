@@ -1,0 +1,150 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+## Module 5, Assignment 1
+### Hackett, Evan
+
+```{r}
+library(tidyverse)
+library(caret)
+library(nnet)
+```
+
+```{r}
+parole <- read_csv("C:/Users/Evan/Desktop/BAN 502/Module 3/Assignment 2/parole.csv")
+View(parole)
+
+parole = parole %>% mutate(male = as_factor(as.character(male))) %>%
+mutate(male = fct_recode(male,
+"male" = "1",
+"female" = "0"))
+
+parole = parole %>% mutate(race = as_factor(as.character(race))) %>%
+mutate(race = fct_recode(race,
+"white" = "1",
+"otherwise" = "2"))
+
+parole = parole %>% mutate(state = as_factor(as.character(state))) %>%
+mutate(state = fct_recode(state,
+"Other" = "1",
+"Kentucky" = "2",
+"Louisana" = "3",
+"Virginia" = "4"))
+
+parole = parole %>% mutate(crime = as_factor(as.character(crime))) %>%
+mutate(crime = fct_recode(crime,
+"Other" = "1",
+"larceny" = "2",
+"drug-related" = "3",
+"driving-related" = "4"))
+
+parole = parole %>% mutate(multiple.offenses = as_factor(as.character(multiple.offenses))) %>%
+mutate(multiple.offenses = fct_recode(multiple.offenses,
+"multiple offenses" = "1",
+"otherwise" = "0"))
+
+parole = parole %>% mutate(violator = as_factor(as.character(violator))) %>%
+mutate(violator = fct_recode(violator,
+"violated parole" = "1",
+"completed parole" = "0"))
+
+```
+
+```{r}
+set.seed(12345)
+train.rows = createDataPartition(y = parole$violator, p=0.7, list = FALSE) #70% in training
+train = parole[train.rows,] 
+test = parole[-train.rows,]
+```
+
+```{r}
+start_time = Sys.time() #for timing
+fitControl = trainControl(method = "cv", 
+                           number = 10)
+
+nnetGrid <-  expand.grid(size = 12, decay = 0.1)
+
+set.seed(1234)
+nnetBasic = train(violator ~ ., 
+                 parole,
+                 method = "nnet",
+                 tuneGrid = nnetGrid,
+                 trControl = fitControl,
+                 verbose = FALSE,
+                 trace = FALSE)
+
+end_time = Sys.time()
+end_time-start_time
+```
+
+```{r}
+nnetBasic
+```
+
+```{r}
+predNetBasic = predict(nnetBasic, train)
+```
+
+Confusion matrix
+```{r}
+confusionMatrix(predNetBasic, train$violator, positive = "completed parole")
+```
+The model has a 93.02% accuracy rate on the train data set, which is greater than the naive accuracy rate of 88.37%, the difference between the two is statistically significant as the p-value is less than .05. 
+
+```{r}
+start_time = Sys.time() #for timing
+fitControl = trainControl(method = "cv", 
+                           number = 10)
+
+nnetGrid =  expand.grid(size = seq(from = 1, to = 12, by = 1), #rule of thumb --> between # of input and # of output layers
+                        decay = seq(from = 0.1, to = 0.5, by = 0.1))
+set.seed(1234)
+nnetFit = train(violator ~ ., 
+                 parole,
+                 method = "nnet",
+                 trControl = fitControl,
+                 tuneGrid = nnetGrid,
+                 verbose = FALSE,
+                 trace = FALSE)
+
+end_time = Sys.time()
+end_time-start_time
+```
+
+
+```{r}
+nnetFit
+```
+
+```{r}
+predNet = predict(nnetFit, train)
+```
+
+```{r}
+confusionMatrix(predNet, train$violator, positive = "completed parole")
+```
+
+This model is not as accurate as the other model, but is still fairly accurate at 90.49%, the naive model is at 88.37% however, the difference between the two models is not statistically significant. 
+
+```{r}
+predNetBasic_test = predict(nnetBasic, test)
+```
+
+```{r}
+confusionMatrix(predNetBasic_test, test$violator, positive = "completed parole")
+```
+when looking at this model through the test data set our accuracy is now 91.58% and the naive accruacy rate is 88.61%, it should be noted that the difference is not statistically significant. 
+
+```{r}
+predNet_test = predict(nnetFit, test)
+```
+
+```{r}
+confusionMatrix(predNet_test, test$violator, positive = "completed parole")
+```
+
+When looking at this model, utilizing the test dataste, the accuracy rate for the model and naive model are identical at 88.61%.
+
+When looking at the models that were created in Task 2 and 4 I can confidently say that we are not overfitting with the model in task 2 as there is not a large change between the accuracy rates when we switch from the training dataset to the testing dataset, the accuracy changes from ~93% to ~91%. I do not that think that we are experiencing overfit in the task 4 model either as we are seeing a roughly similar decrease in accruacy as we saw in task 2, which was around 2%. 

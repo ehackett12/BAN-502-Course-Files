@@ -1,0 +1,76 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+## Module 2 Assignment 1 - Correlation and Simple Linear Regression Assignment
+### Hackett, Evan
+
+```{r}
+library(tidyverse) #Loads in Tidyverse
+library(GGally) #Loads in GGally
+library(ggplot2)
+```
+
+```{r}
+air = airquality #Loading in Dataset
+```
+
+This dataset is found within R and contains 6 variables with 153 observations. There is missing data within the dataset. The variable most likely to be the Y variable is the Ozone variable.  
+
+```{r}
+air2 = air %>% filter(!is.na(Ozone)) %>% filter(!is.na(Solar.R))
+```
+After removing any rows with missing data we are left with the same six variables but there are only 111 rows of observations now. 
+
+```{r}
+ggpairs(air2)
+ggcorr(air2, label = TRUE)
+```
+
+The variable that is most strongly correlated with the Ozone variable is the temperature variable.  
+The variable that is least strongly correlated with Ozone layer are the day and month variables, this is to be expected with dates, so if we exclude those it becomes Solar.R.
+
+```{r}
+ggplot(air2,aes(x=Temp,y=Ozone)) +geom_point()
+```
+
+It appears that there is a positive correlation between the two variables - as temperature increases so does the Ozone variable. 
+
+```{r}
+model1 = lm(Ozone ~ Temp, air2) #Creates Linear Model
+summary(model1) #Analyze Linear Model
+confint(model1) #Produces Confidence Interval
+```
+
+Overall the quality of this linear model is not too terrible. The preidctor variable is statistically significant as the P-value is less than .05 and the R squared value of .488 is not that bad, it can explain roughly half the data points.  
+
+The range of the slope coeffeicient typically falls between 1.964787 and 2.913433. 
+
+```{r}
+ggplot(air2,aes(x=Temp,y=Ozone)) +geom_point() + geom_smooth(method="lm", se = FALSE)
+```
+
+```{r}
+testdata = data.frame(Temp = 80)
+predict(model1,newdata=testdata,, interval = "predict")
+```
+
+```{r}
+ggplot(air2,aes(x=Day,y=Ozone)) + geom_point()
+```
+
+```{r}
+model2 = lm(Ozone ~ Day, air2) #Creates Linear Model
+summary(model2) #Analyze Linear Model
+confint(model2) #Produces Confidence Interval
+```
+
+The second model we created to see if day was a good indicator variable for Ozone is a terrible model. The model has an R squared value that is near zero and the indicator variable is not statistically significant.  
+
+R is telling us that we should be 95% confident that the slope coefficient will fall between -.74521 and .7056539
+
+```{r}
+ggplot(air2,aes(x=Day,y=Ozone)) + geom_point() + geom_smooth(method="lm", se = FALSE)
+```
+
